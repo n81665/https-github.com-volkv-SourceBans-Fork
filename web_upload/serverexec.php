@@ -1,6 +1,365 @@
 <?php
+// *************************************************************************
+//  This file is part of SourceBans++.
+//
+//  Copyright (C) 2014-2016 Sarabveer Singh <me@sarabveer.me>
+//
+//  SourceBans++ is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, per version 3 of the License.
+//
+//  SourceBans++ is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with SourceBans++. If not, see <http://www.gnu.org/licenses/>.
+//
+//  This file is based off work covered by the following copyright(s):  
+//
+//   SourceBans 1.4.11
+//   Copyright (C) 2007-2015 SourceBans Team - Part of GameConnect
+//   Licensed under GNU GPL version 3, or later.
+//   Page: <http://www.sourcebans.net/> - <https://github.com/GameConnect/sourcebansv1>
+//
+// *************************************************************************
 
+
+// *************************************************************************
 $identkey = "ChangeMe";
+// *************************************************************************
+
+
+// ---------------------------------------------------
+// Functions included and modified from other files. Required to use with the http interface of cod4x18server
+// ---------------------------------------------------
+
+
+//Entry point is here
+
+    $values = array();
+    $rawdata = file_get_contents('php://input');
+    mb_parse_str($rawdata, $values);
+
+    if(!isset($values["identkey"])){
+        $response = array('status' => 'invalid_inputparamters');
+        echo http_build_query($response);
+        return;
+    }
+
+
+    if($values["identkey"] !== $identkey){
+        $response = array('status' => 'invalid_identkey');
+        echo http_build_query($response);
+        return;
+    }
+
+
+    if($identkey == "ChangeMe")
+    {
+        $response = array('status' => 'change_default_identkey');
+        echo http_build_query($response);
+        return;
+    }
+
+        $response = array(
+            'status' => 'permission',
+            'message' => 'You have no permissions');
+
+
+//    file_put_contents("input.txt", var_export($values, true));
+
+    /* Source Bans */
+    global $userbank;
+
+    /* Trick to use server permissions */
+    define('ADMIN_ADD_BAN', "dz");
+    define('ADMIN_OWNER', "");
+
+    require_once('init.php');
+    unset($_COOKIE['password']);
+
+    require_once(INCLUDES_PATH.'/sb-callback.php');
+
+    $serverexec = new serverexec();
+
+    $response = array();
+    $authid = "";
+
+    if(!isset($values["command"]))
+    {
+        $response = array('status' => 'invalid_inputparamters');
+    }else{
+        if(!isset($values['adminsteamid'])){
+            $response = array(
+            'status' => 'permission',
+            'message' => 'You have no permissions');
+            $authid = -1;
+
+        }else if($values['adminsteamid'] == 0){
+        /* Patch to act from console */
+            class CUserManagerPatch extends CUserManager {
+                function HasAccess($flags, $aid=-2)
+                {
+                    return TRUE;
+                }
+            }
+            $userbank = new CUserManagerPatch(0, 0);
+            $userbank->aid = 0;
+
+        }else{
+            /* Regular admin */
+            $steam32id = $values['adminsteamid'];
+            if((!is_numeric($steam32id) && !validate_steam($steam32id)) || (is_numeric($steam32id) && (strlen($steam32id) < 15
+            || !validate_steam($steam32id = FriendIDToSteamID($steam32id)))))
+            {
+                $steam32id = 0;
+                $values['adminsteamid'] = 0;
+            }
+
+            $admins = $userbank->GetAllAdmins();
+
+            foreach($admins as $admin)
+            {
+                if($admin['authid'] == $values['adminsteamid'] || $admin['authid'] == $steam32id)
+                {
+                    $userbank->aid = $admin['aid'];
+                    $authid = $admin['authid'];
+                    break;
+                }
+            }
+            if($userbank->aid <= 0)
+            {
+                $response = array(
+                'status' => 'permission',
+                'message' => 'You have no permissions');
+                $authid = -1;
+            }
+
+        }
+
+        if(!empty($response))
+        {
+//            file_put_contents("output.txt", var_export($response, true));
+            echo http_build_query($response);
+            return;
+        }
+
+        if($values["command"] == "HELO")
+        {
+            if(empty($values['gamename']) || empty($values['gamedir']))
+            {
+                $response = array(
+                'status' => "Error: Empty gamename or gamedir value");
+            }else if(empty($_SERVER['REMOTE_ADDR']) || empty($values['serverport'])){
+                $response = array(
+                'status' => "Error: Empty serverip or serverport value");
+
+            }else if(empty($values['rcon'])){
+                $response = array(
+                'status' => "Error: Empty rcon value");
+            }else{
+
+                $ret = $serverexec->AddMod($GLOBALS['db'], $userbank, $values['gamename'], $values['gamedir'], $values['gamedir'].".png", 0, true, $modinfo);
+
+                if($ret !== "success" && $ret !== "Already present")
+                {
+                    $response = array(
+                    'status' => $ret);
+                }else{
+
+                    if(empty($modinfo['mid']) || (int)($modinfo['mid']) < 1)
+                    {
+                        $response = array(
+                        'status' => "Couldn't add mod to database");
+                    }else{
+                        $serverexec->AddServer($GLOBALS['db'], $userbank, $_SERVER['REMOTE_ADDR'], $values['serverport'], $values['rcon'], $modinfo['mid'], true);
+                        if($ret !== "success" && $ret !== "Already present")
+                        {
+                            $response = array(
+                            'status' => $ret);
+                        }else{
+                            $proto = empty($_SERVER['HTTPS']) ? "http://" : "https://";
+                            $port = $_SERVER['SERVER_PORT'] != 80 && $_SERVER['SERVER_PORT'] != 443 ? ":".$_SERVER['SERVER_PORT'] : "";
+                            $sourcebansurl = dirname($proto.$_SERVER['HTTP_HOST'].$port.$_SERVER['REQUEST_URI'])."/";
+                            $response = array(
+                            'status' => 'okay',
+                            'showbanlistmessage' => 'Please visit '.$sourcebansurl.' to view the banlist');
+                        }
+                    }
+                }
+            }
+        }else if($values["command"] == "queryplayer"){
+            $playerid = "";
+            $ip = "";
+            if(isset($values['playerid']))
+            {
+              $playerid = $values['playerid'];
+            }
+            if(isset($values['address']))
+            {
+              $ip = $values['address'];
+            }
+            $status = $serverexec->QueryPlayer($GLOBALS['db'], $userbank, $playerid, $ip, $result);
+            if($status !== "success")
+            {
+              $response = array('status' => $status, 'playerid' => $playerid);
+            }else{
+              if((int)$result['length'] === 0)
+              {
+                $expire = -1;
+              }else{
+                $expire = $result['ends'];
+              }
+              $response = array(
+              'status' => 'active',
+              'playerid' => $result['authid'],
+              'message' => $result['reason'],
+              'expire' => $expire,
+              'created' => $result['created'],
+              'length' => $result['length'],
+              'steamid' => '');
+            }
+        }else if($values["command"] == "modifyban"){
+            if(!isset($values["adminsteamid"])){
+                $response = array(
+                'status' => 'permission',
+                'message' => 'You have no permission to modify ban records');
+            }else if(!isset($values["timeleft"])){
+                $response = array(
+                'status' => 'error',
+                'message' => 'timeleft undefined');
+            }else{
+              $playername = "";
+              $ip = "";
+              $banreason = "";
+              $playerid = "";
+
+              if(isset($values['playername']))
+              {
+                $playername = $values['playername'];
+              }
+              if(isset($values['address']))
+              {
+                $ip = $values['address'];
+              }
+              if(isset($values['reason']))
+              {
+                $banreason = $values['reason'];
+              }
+              if(isset($values['playerid']))
+              {
+                $playerid = $values['playerid'];
+              }
+
+              $bantime = $values['timeleft'];
+              if($bantime === -1 || $bantime > 0)
+              {
+                if($bantime === -1)
+                {
+                  //This is a permanent ban
+                  $bantime = 0;
+                }
+                $status = $serverexec->AddBan($GLOBALS['db'], $userbank, $playerid, $ip, $bantime, $banreason, $playername);
+                if($status === "Already Banned")
+                {
+                    $status = $serverexec->EditBan($GLOBALS['db'], $userbank, $steam, $bantime, "");
+                }
+                if($status === "success")
+                {
+                  $status = "success_ban";
+                }
+              }else if($bantime === 0){
+                //This is an unban
+                $status = $serverexec->RemoveBan($GLOBALS['db'], $userbank, $playerid, "Unban from game/console");
+                if($status === "success")
+                {
+                  $status = "success_unban";
+                }
+              }
+
+              $response = array(
+              'status' => $status,
+              'steamid' => 'UnknownName',
+              'nick' => '',
+              'playerid' => $playerid);
+            }
+
+        }else if($values["command"] == "querypermissions"){
+            if(!isset($values["adminsteamid"])){
+              $response = array(
+              'status' => 'notfound',
+              'steamid' => '',
+              'cmdlist' => '',
+              'message' => '');
+            }
+
+            $cmdlist = "cmdlist;ministatus;rules";
+
+            if($userbank->HasAccess(SM_ROOT . SM_RCON . SM_FULL . SM_GENERIC))
+            {
+                $cmdlist .= ";pchat;getss;record;warn;undercover;stoprecord;changepassword;status";
+            }else{
+                if($userbank->HasAccess(SM_CHAT))
+                {
+                    $cmdlist .= ";pchat";
+                }
+            }
+
+            if($userbank->HasAccess(SM_ROOT . SM_RCON . SM_FULL))
+            {
+                $cmdlist .= ";kick;tempban;permban;unban;map;map_rotate;map_restart;say;screensay;tell;screentell";
+            }else{
+                if($userbank->HasAccess(SM_KICK))
+                {
+                    $cmdlist .= ";kick";
+                }
+                if($userbank->HasAccess(SM_BAN))
+                {
+                    $cmdlist .= ";tempban;permban";
+                }
+                if($userbank->HasAccess(SM_UNBAN))
+                {
+                    $cmdlist .= ";unban";
+                }
+                if($userbank->HasAccess(SM_MAP))
+                {
+                    $cmdlist .= ";map;map_rotate;map_restart";
+                }
+
+            }
+
+            if($userbank->HasAccess(SM_ROOT . SM_RCON))
+            {
+                $cmdlist .= ";set;exec;adminchangepassword;adminlistadmins;adminaddadmin;adminremoveadmin;adminlistcommands";
+            }else{
+                if($userbank->HasAccess(SM_CVAR))
+                {
+                    $cmdlist .= ";set";
+                }
+                if($userbank->HasAccess(SM_CONFIG))
+                {
+                    $cmdlist .= ";exec";
+                }
+            }
+
+            $response = array(
+            'status' => 'success',
+            'steamid' => $values["adminsteamid"],
+            'cmdlist' => $cmdlist,
+            'message' => '');
+
+        }else{
+
+            $response = array('status' => 'invalid_command');
+        }
+
+    }
+
+//    file_put_contents("output.txt", var_export($response, true));
+
+    echo http_build_query($response);
 
 
 
@@ -413,332 +772,5 @@ class serverexec
     }
 
 }
-
-
-
-    $values = array();
-    $rawdata = file_get_contents('php://input');
-    mb_parse_str($rawdata, $values);
-
-    if(!isset($values["identkey"])){
-        $response = array('status' => 'invalid_inputparamters');
-        echo http_build_query($response);
-        return;
-    }
-
-
-    if($values["identkey"] !== $identkey){
-        $response = array('status' => 'invalid_identkey');
-        echo http_build_query($response);
-        return;
-    }
-
-
-    if($identkey == "ChangeMe")
-    {
-        $response = array('status' => 'change_default_identkey');
-        echo http_build_query($response);
-        return;
-    }
-
-        $response = array(
-            'status' => 'permission',
-            'message' => 'You have no permissions');
-
-
-//    file_put_contents("input.txt", var_export($values, true));
-
-    /* Source Bans */
-    global $userbank;
-
-    /* Trick to use server permissions */
-    define('ADMIN_ADD_BAN', "dz");
-    define('ADMIN_OWNER', "");
-
-    include_once("/var/www/sourcebans/init.php");
-    unset($_COOKIE['password']);
-
-    require_once(INCLUDES_PATH.'/sb-callback.php');
-    require_once(ROOT.'/serverexec.php');
-
-    $serverexec = new serverexec();
-
-    $response = array();
-    $authid = "";
-
-    if(!isset($values["command"]))
-    {
-        $response = array('status' => 'invalid_inputparamters');
-    }else{
-        if(!isset($values['adminsteamid'])){
-            $response = array(
-            'status' => 'permission',
-            'message' => 'You have no permissions');
-            $authid = -1;
-
-        }else if($values['adminsteamid'] == 0){
-        /* Patch to act from console */
-            class CUserManagerPatch extends CUserManager {
-                function HasAccess($flags, $aid=-2)
-                {
-                    return TRUE;
-                }
-            }
-            $userbank = new CUserManagerPatch(0, 0);
-            $userbank->aid = 0;
-
-        }else{
-            /* Regular admin */
-            $steam32id = $values['adminsteamid'];
-            if((!is_numeric($steam32id) && !validate_steam($steam32id)) || (is_numeric($steam32id) && (strlen($steam32id) < 15
-            || !validate_steam($steam32id = FriendIDToSteamID($steam32id)))))
-            {
-                $steam32id = 0;
-                $values['adminsteamid'] = 0;
-            }
-
-            $admins = $userbank->GetAllAdmins();
-
-            foreach($admins as $admin)
-            {
-                if($admin['authid'] == $values['adminsteamid'] || $admin['authid'] == $steam32id)
-                {
-                    $userbank->aid = $admin['aid'];
-                    $authid = $admin['authid'];
-                    break;
-                }
-            }
-            if($userbank->aid <= 0)
-            {
-                $response = array(
-                'status' => 'permission',
-                'message' => 'You have no permissions');
-                $authid = -1;
-            }
-
-        }
-
-        if(!empty($response))
-        {
-//            file_put_contents("output.txt", var_export($response, true));
-            echo http_build_query($response);
-            return;
-        }
-
-        if($values["command"] == "HELO")
-        {
-            if(empty($values['gamename']) || empty($values['gamedir']))
-            {
-                $response = array(
-                'status' => "Error: Empty gamename or gamedir value");
-            }else if(empty($_SERVER['REMOTE_ADDR']) || empty($values['serverport'])){
-                $response = array(
-                'status' => "Error: Empty serverip or serverport value");
-
-            }else if(empty($values['rcon'])){
-                $response = array(
-                'status' => "Error: Empty rcon value");
-            }else{
-
-                $ret = $serverexec->AddMod($GLOBALS['db'], $userbank, $values['gamename'], $values['gamedir'], $values['gamedir'].".png", 0, true, $modinfo);
-
-                if($ret !== "success" && $ret !== "Already present")
-                {
-                    $response = array(
-                    'status' => $ret);
-                }else{
-
-                    if(empty($modinfo['mid']) || (int)($modinfo['mid']) < 1)
-                    {
-                        $response = array(
-                        'status' => "Couldn't add mod to database");
-                    }else{
-                        $serverexec->AddServer($GLOBALS['db'], $userbank, $_SERVER['REMOTE_ADDR'], $values['serverport'], $values['rcon'], $modinfo['mid'], true);
-                        if($ret !== "success" && $ret !== "Already present")
-                        {
-                            $response = array(
-                            'status' => $ret);
-                        }else{
-                            $proto = empty($_SERVER['HTTPS']) ? "http://" : "https://";
-                            $port = $_SERVER['SERVER_PORT'] != 80 && $_SERVER['SERVER_PORT'] != 443 ? ":".$_SERVER['SERVER_PORT'] : "";
-                            $sourcebansurl = dirname($proto.$_SERVER['HTTP_HOST'].$port.$_SERVER['REQUEST_URI'])."/";
-                            $response = array(
-                            'status' => 'okay',
-                            'showbanlistmessage' => 'Please visit '.$sourcebansurl.' to view the banlist');
-                        }
-                    }
-                }
-            }
-        }else if($values["command"] == "queryplayer"){
-            $playerid = "";
-            $ip = "";
-            if(isset($values['playerid']))
-            {
-              $playerid = $values['playerid'];
-            }
-            if(isset($values['address']))
-            {
-              $ip = $values['address'];
-            }
-            $status = $serverexec->QueryPlayer($GLOBALS['db'], $userbank, $playerid, $ip, $result);
-            if($status !== "success")
-            {
-              $response = array('status' => $status, 'playerid' => $playerid);
-            }else{
-              if((int)$result['length'] === 0)
-              {
-                $expire = -1;
-              }else{
-                $expire = $result['ends'];
-              }
-              $response = array(
-              'status' => 'active',
-              'playerid' => $result['authid'],
-              'message' => $result['reason'],
-              'expire' => $expire,
-              'created' => $result['created'],
-              'length' => $result['length'],
-              'steamid' => '');
-            }
-        }else if($values["command"] == "modifyban"){
-            if(!isset($values["adminsteamid"])){
-                $response = array(
-                'status' => 'permission',
-                'message' => 'You have no permission to modify ban records');
-            }else if(!isset($values["timeleft"])){
-                $response = array(
-                'status' => 'error',
-                'message' => 'timeleft undefined');
-            }else{
-              $playername = "";
-              $ip = "";
-              $banreason = "";
-              $playerid = "";
-
-              if(isset($values['playername']))
-              {
-                $playername = $values['playername'];
-              }
-              if(isset($values['address']))
-              {
-                $ip = $values['address'];
-              }
-              if(isset($values['reason']))
-              {
-                $banreason = $values['reason'];
-              }
-              if(isset($values['playerid']))
-              {
-                $playerid = $values['playerid'];
-              }
-
-              $bantime = $values['timeleft'];
-              if($bantime === -1 || $bantime > 0)
-              {
-                if($bantime === -1)
-                {
-                  //This is a permanent ban
-                  $bantime = 0;
-                }
-                $status = $serverexec->AddBan($GLOBALS['db'], $userbank, $playerid, $ip, $bantime, $banreason, $playername);
-                if($status === "Already Banned")
-                {
-                    $status = $serverexec->EditBan($GLOBALS['db'], $userbank, $steam, $bantime, "");
-                }
-                if($status === "success")
-                {
-                  $status = "success_ban";
-                }
-              }else if($bantime === 0){
-                //This is an unban
-                $status = $serverexec->RemoveBan($GLOBALS['db'], $userbank, $playerid, "Unban from game/console");
-                if($status === "success")
-                {
-                  $status = "success_unban";
-                }
-              }
-
-              $response = array(
-              'status' => $status,
-              'steamid' => 'UnknownName',
-              'nick' => '',
-              'playerid' => $playerid);
-            }
-
-        }else if($values["command"] == "querypermissions"){
-            if(!isset($values["adminsteamid"])){
-              $response = array(
-              'status' => 'notfound',
-              'steamid' => '',
-              'cmdlist' => '',
-              'message' => '');
-            }
-
-            $cmdlist = "cmdlist;ministatus;rules";
-
-            if($userbank->HasAccess(SM_ROOT . SM_RCON . SM_FULL . SM_GENERIC))
-            {
-                $cmdlist .= ";pchat;getss;record;warn;undercover;stoprecord;changepassword;status";
-            }else{
-                if($userbank->HasAccess(SM_CHAT))
-                {
-                    $cmdlist .= ";pchat";
-                }
-            }
-
-            if($userbank->HasAccess(SM_ROOT . SM_RCON . SM_FULL))
-            {
-                $cmdlist .= ";kick;tempban;permban;unban;map;map_rotate;map_restart;say;screensay;tell;screentell";
-            }else{
-                if($userbank->HasAccess(SM_KICK))
-                {
-                    $cmdlist .= ";kick";
-                }
-                if($userbank->HasAccess(SM_BAN))
-                {
-                    $cmdlist .= ";tempban;permban";
-                }
-                if($userbank->HasAccess(SM_UNBAN))
-                {
-                    $cmdlist .= ";unban";
-                }
-                if($userbank->HasAccess(SM_MAP))
-                {
-                    $cmdlist .= ";map;map_rotate;map_restart";
-                }
-
-            }
-
-            if($userbank->HasAccess(SM_ROOT . SM_RCON))
-            {
-                $cmdlist .= ";set;exec;adminchangepassword;adminlistadmins;adminaddadmin;adminremoveadmin;adminlistcommands";
-            }else{
-                if($userbank->HasAccess(SM_CVAR))
-                {
-                    $cmdlist .= ";set";
-                }
-                if($userbank->HasAccess(SM_CONFIG))
-                {
-                    $cmdlist .= ";exec";
-                }
-            }
-
-            $response = array(
-            'status' => 'success',
-            'steamid' => $values["adminsteamid"],
-            'cmdlist' => $cmdlist,
-            'message' => '');
-
-        }else{
-
-            $response = array('status' => 'invalid_command');
-        }
-
-    }
-
-//    file_put_contents("output.txt", var_export($response, true));
-
-    echo http_build_query($response);
-
 
 
