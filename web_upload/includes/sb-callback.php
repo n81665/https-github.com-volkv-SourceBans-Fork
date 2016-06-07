@@ -908,7 +908,7 @@ function AddAdmin($mask, $srv_mask, $a_name, $a_steam, $a_email, $a_password, $a
 	{
 		// Validate the steamid or fetch it from the community id
 		if((!is_numeric($a_steam) 
-		&& !validate_steam($a_steam))
+		&& !validateconvert_steam($a_steam))
 		|| (is_numeric($a_steam) 
 		&& (strlen($a_steam) < 15
 		|| !validate_steam($a_steam = FriendIDToSteamID($a_steam)))))
@@ -1703,7 +1703,7 @@ function AddBan($nickname, $type, $steam, $ip, $length, $dfile, $dname, $reason,
 	}
 	else if(($type == 0 
 	&& !is_numeric($steam) 
-	&& !validate_steam($steam))
+	&& !validateconvert_steam($steam))
 	|| (is_numeric($steam) 
 	&& (strlen($steam) < 15
 	|| !validate_steam($steam = FriendIDToSteamID($steam)))))
@@ -3069,7 +3069,7 @@ function AddBlock($nickname, $type, $steam, $length, $reason)
 		$objResponse->addScript("$('steam.msg').setStyle('display', 'block');");
 	}
 	else if((!is_numeric($steam) 
-	&& !validate_steam($steam))
+	&& !validateconvert_steam($steam))
 	|| (is_numeric($steam) 
 	&& (strlen($steam) < 15
 	|| !validate_steam($steam = FriendIDToSteamID($steam)))))

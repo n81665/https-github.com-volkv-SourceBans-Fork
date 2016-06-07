@@ -352,7 +352,20 @@ function check_flag($mask, $flag)
 		return false;
 }
 
-function validate_steam(&$steam)
+function validate_steam($steam)
+{
+	if(preg_match(STEAM_FORMAT, $steam))
+	{
+		return true;
+	}
+	if(preg_match(STEAM3_FORMAT, $steam))
+	{
+		return true;
+	}
+	return false;
+}
+
+function validateconvert_steam(&$steam)
 {
 	if(preg_match(STEAM_FORMAT, $steam))
 	{
@@ -366,6 +379,7 @@ function validate_steam(&$steam)
 	}
 	return false;
 }
+
 
 function validate_email($email)
 {

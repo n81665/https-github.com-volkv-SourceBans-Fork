@@ -74,7 +74,7 @@ if(isset($_POST['name']))
 	}
 	else if(($_POST['type'] == 0 
 	&& !is_numeric($_POST['steam']) 
-	&& !validate_steam($_POST['steam']))
+	&& !validateconvert_steam($_POST['steam']))
 	|| (is_numeric($_POST['steam']) 
 	&& (strlen($_POST['steam']) < 15
 	|| !validate_steam($_POST['steam'] = FriendIDToSteamID($_POST['steam'])))))

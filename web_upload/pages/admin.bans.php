@@ -50,14 +50,9 @@ if(isset($_POST['action']) && $_POST['action'] == "importBans")
 					$GLOBALS['db']->Execute($pre, array("", $line[2], "Imported Ban", 0, 0, "banned_ip.cfg import", $_COOKIE['aid'], $_SERVER['REMOTE_ADDR'], 1));
 				}
 			} else { // if its an banned_user.cfg
-				if (!validate_steam($line[2])) {
-					if (($accountId = getAccountId($line[2])) !== -1) {
-						$steam = renderSteam2($accountId, getUniverse($line[2]));
-					} else {
+				$steam = $line[2];
+				if (!validateconvert_steam($steam)) {
 						continue;
-					}
-				} else {
-					$steam = $line[2];
 				}
 				$check = $GLOBALS['db']->Execute("SELECT authid FROM `" . DB_PREFIX . "_bans` WHERE authid = ? AND RemoveType IS NULL", array($steam));
 				if($check->RecordCount() == 0)

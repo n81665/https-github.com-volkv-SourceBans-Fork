@@ -71,7 +71,7 @@ if(isset($_POST['name']))
 		$errorScript .= "$('steam.msg').setStyle('display', 'block');";
 	}
 	else if((!is_numeric($_POST['steam']) 
-	&& !validate_steam($_POST['steam']))
+	&& !validateconvert_steam($_POST['steam']))
 	|| (is_numeric($_POST['steam']) 
 	&& (strlen($_POST['steam']) < 15
 	|| !validate_steam($_POST['steam'] = FriendIDToSteamID($_POST['steam'])))))
