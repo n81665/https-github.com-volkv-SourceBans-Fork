@@ -717,7 +717,7 @@ function AddServer($ip, $port, $rcon, $rcon2, $mod, $enabled, $group, $group_nam
 	// ##############################################################
 	//they wanna make a new group
 	$gid = -1;
-	$sid = nextSid();
+	$sid = NextSid();
 	
 	$enable = ($enabled=="true"?1:0);
 
@@ -1575,7 +1575,7 @@ function KickPlayer($sid, $name)
 		$steam2 = $steam;
 		// Hack to support steam3 [U:1:X] representation.
 		if(strpos($steam, "[U:") === 0) {
-			$steam2 = renderSteam2(getAccountId($steam), 0);
+			$steam2 = renderSteam2(getAccountId($steam), getUniverse($steam));
 		}
 		// check for immunity
 		$admin = $GLOBALS['db']->GetRow("SELECT a.immunity AS pimmune, g.immunity AS gimmune FROM `".DB_PREFIX."_admins` AS a LEFT JOIN `".DB_PREFIX."_srvgroups` AS g ON g.name = a.srv_group WHERE authid = '".$steam2."' LIMIT 1;");
@@ -1654,10 +1654,15 @@ function PasteBan($sid, $name, $type=0)
 		$steam = $matches[3][$index];
 		// Hack to support steam3 [U:1:X] representation.
 		if(strpos($steam, "[U:") === 0) {
-			$steam = renderSteam2(getAccountId($steam), 0);
+			$steam = renderSteam2(getAccountId($steam), getUniverse($steam));
 		}
 		$name = $matches[2][$index];
-		$ip = explode(":", $matches[8][$index]);
+		if(strpos($matches[8][$index], ":") == FALSE && !empty($matches[9][$index])) //Probably just the rate
+		{
+		    $ip = explode(":", $matches[9][$index]);
+		}else{
+		    $ip = explode(":", $matches[8][$index]);
+		}
 		$ip = $ip[0];
 		$objResponse->addScript("$('nickname').value = '" . addslashes($name) . "'");
 		if($type==1)
@@ -2989,6 +2994,7 @@ function ViewCommunityProfile($sid, $name)
 	$i = 0;
 	$found = false;
 	$index = -1;
+
 	foreach($matches[2] AS $match) {
 		if($match == $name) {
 			$found = true;
@@ -3001,7 +3007,7 @@ function ViewCommunityProfile($sid, $name)
 		$steam = $matches[3][$index];
 		// Hack to support steam3 [U:1:X] representation.
 		if(strpos($steam, "[U:") === 0) {
-			$steam = renderSteam2(getAccountId($steam), 0);
+			$steam = renderSteam2(getAccountId($steam), getUniverse($steam));
 		}
         $objResponse->addScript("$('dialog-control').setStyle('display', 'block');$('dialog-content-text').innerHTML = 'Generating Community Profile link for ".addslashes(htmlspecialchars($name)).", please wait...<br /><font color=\"green\">Done.</font><br /><br /><b>Watch the profile <a href=\"http://www.steamcommunity.com/profiles/".SteamIDToFriendID($steam)."/\" title=\"".addslashes(htmlspecialchars($name))."\'s Profile\" target=\"_blank\">here</a>.</b>';");
 		$objResponse->addScript("window.open('http://www.steamcommunity.com/profiles/".SteamIDToFriendID($steam)."/', 'Community_".$steam."');");

@@ -16,7 +16,7 @@
 //  You should have received a copy of the GNU General Public License
 //  along with SourceBans++. If not, see <http://www.gnu.org/licenses/>.
 //
-//  This file is based off work covered by the following copyright(s):  
+//  This file is based off work covered by the following copyright(s):
 //
 //   SourceBans 1.4.11
 //   Copyright (C) 2007-2015 SourceBans Team - Part of GameConnect
@@ -435,10 +435,8 @@ while (!$res->EOF)
 	$data['ban_date'] = SBDate($dateformat,$res->fields['ban_created']);
 	$data['player'] = addslashes($res->fields['player_name']);
 	$data['steamid'] = $res->fields['authid'];
-	$data['communityid'] = $res->fields['community_id'];
-	$steam2id = $data['steamid'];
-	$steam3parts = explode(':', $steam2id);
-	$data['steamid3'] = '[U:1:' . ($steam3parts[2] * 2 + $steam3parts[1]) . ']';
+	$data['communityid'] = SteamIDToFriendID($res->fields['authid']);
+	$data['steamid3'] = '[U:'.getUniverse($res->fields['authid']).':' . getAccountId($res->fields['authid']) . ']';
 
 	if(isset($GLOBALS['config']['banlist.hideadminname']) && $GLOBALS['config']['banlist.hideadminname'] == "1" && !$userbank->is_admin())
 		$data['admin'] = false;

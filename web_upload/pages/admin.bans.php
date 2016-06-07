@@ -52,7 +52,7 @@ if(isset($_POST['action']) && $_POST['action'] == "importBans")
 			} else { // if its an banned_user.cfg
 				if (!validate_steam($line[2])) {
 					if (($accountId = getAccountId($line[2])) !== -1) {
-						$steam = renderSteam2($accountId, 0);
+						$steam = renderSteam2($accountId, getUniverse($line[2]));
 					} else {
 						continue;
 					}
