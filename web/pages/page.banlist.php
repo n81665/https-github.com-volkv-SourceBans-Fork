@@ -384,7 +384,6 @@ if(isset($_GET['advSearch']))
 		$res = $GLOBALS['db']->Execute(
 				    	"SELECT BA.bid ban_id, BA.type, BA.ip ban_ip, BA.authid, BA.name player_name, created ban_created, ends ban_ends, length ban_length, reason ban_reason, BA.ureason unban_reason, BA.aid, AD.gid AS gid, adminIp, BA.sid ban_server, country ban_country, RemovedOn, RemovedBy, RemoveType row_type,
 			SE.ip server_ip, AD.user admin_name, AD.gid, MO.icon as mod_icon,
-			CAST(MID(BA.authid, 9, 1) AS UNSIGNED) + CAST('76561197960265728' AS UNSIGNED) + CAST(MID(BA.authid, 11, 10) * 2 AS UNSIGNED) AS community_id,
 			(SELECT count(*) FROM ".DB_PREFIX."_demos as DM WHERE DM.demtype='B' and DM.demid = BA.bid) as demo_count,
 			(SELECT count(*) FROM ".DB_PREFIX."_bans as BH WHERE (BH.type = BA.type AND BH.type = 0 AND BH.authid = BA.authid AND BH.authid != '' AND BH.authid IS NOT NULL) OR (BH.type = BA.type AND BH.type = 1 AND BH.ip = BA.ip AND BH.ip != '' AND BH.ip IS NOT NULL)) as history_count
 	   FROM ".DB_PREFIX."_bans AS BA
@@ -445,10 +444,10 @@ while (!$res->EOF)
 	$data['player'] = addslashes($res->fields['player_name']);
 	$data['type'] = $res->fields['type'];
 	$data['steamid'] = $res->fields['authid'];
-	$data['communityid'] = $res->fields['community_id'];
+	$data['communityid'] = SteamIDToFriendID($res->fields['authid']);
 	$steam2id = $data['steamid'];
 	$steam3parts = explode(':', $steam2id);
-	$data['steamid3'] = '[U:1:' . ($steam3parts[2] * 2 + $steam3parts[1]) . ']';
+	$data['steamid3'] = '[U:'.getUniverse($data['steamid']).':' . ($steam3parts[2] * 2 + $steam3parts[1]) . ']';
 
 	if(isset($GLOBALS['config']['banlist.hideadminname']) && $GLOBALS['config']['banlist.hideadminname'] == "1" && !$userbank->is_admin())
 		$data['admin'] = false;

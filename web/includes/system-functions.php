@@ -1005,9 +1005,30 @@ function getAccountId($steamid)
 	return -1;
 }
 
+function getUniverse($steamid)
+{
+	if(strpos($steamid, "STEAM_") === 0) {
+		$parts = explode(":", substr($steamid, 6));
+		if(count($parts) != 3)
+			return -1;
+		return (int)$parts[0] + 1;
+	}
+	else if(strpos($steamid, "[U:") === 0) {
+		$parts = explode(":", $steamid);
+		if(count($parts) != 3)
+			return -1;
+		return (int)$parts[1];
+	}
+	return -1;
+}
+
 function renderSteam2($accountId, $universe)
 {
-	return "STEAM_" . $universe . ":" . ($accountId & 1) . ":" . ($accountId >> 1);
+	$firstdigit = $universe -1;
+	if($universe == 0){
+		$firstdigit = 0;
+	}
+	return "STEAM_" . $firstdigit . ":" . ($accountId & 1) . ":" . ($accountId >> 1);
 }
 
 function SBDate($format, $timestamp="")
@@ -1048,7 +1069,14 @@ function SBDate($format, $timestamp="")
 */
 function SteamIDToFriendID($authid)
 {
-	$friendid = $GLOBALS['db']->GetRow("SELECT CAST(MID('".$authid."', 9, 1) AS UNSIGNED) + CAST('76561197960265728' AS UNSIGNED) + CAST(MID('".$authid."', 11, 10) * 2 AS UNSIGNED) AS friend_id");
+	$parts = array("0", "0", "0");
+
+	if(strpos($authid, "STEAM_") === 0)
+	{
+		$parts = explode(":", substr($authid, 6));
+	}
+
+	$friendid = $GLOBALS['db']->GetRow("SELECT (((CAST('".$parts[0]."' AS UNSIGNED) + CAST('1' AS UNSIGNED)) << CAST('56' AS UNSIGNED)) | CAST('1' AS UNSIGNED) << CAST('52' AS UNSIGNED) | CAST('1' AS UNSIGNED) << CAST('32' AS UNSIGNED) | CAST('".$parts[1]."' AS UNSIGNED) & CAST('1' AS UNSIGNED) | CAST('".$parts[2]."' AS UNSIGNED) << CAST('1' AS UNSIGNED)) AS friend_id");
 	return $friendid["friend_id"];
 }
 
@@ -1060,8 +1088,7 @@ function SteamIDToFriendID($authid)
 */
 function FriendIDToSteamID($friendid)
 {
-
-	$steamid = $GLOBALS['db']->GetRow("SELECT CONCAT(\"STEAM_0:\", (CAST('".$friendid."' AS UNSIGNED) - CAST('76561197960265728' AS UNSIGNED)) % 2, \":\", CAST(((CAST('".$friendid."' AS UNSIGNED) - CAST('76561197960265728' AS UNSIGNED)) - ((CAST('".$friendid."' AS UNSIGNED) - CAST('76561197960265728' AS UNSIGNED)) % 2)) / 2 AS UNSIGNED)) AS steam_id;");
+	$steamid = $GLOBALS['db']->GetRow("SELECT CONCAT(\"STEAM_\", ((CAST('".$friendid."' AS UNSIGNED) >> CAST('56' AS UNSIGNED)) - CAST('1' AS UNSIGNED)),	\":\", (CAST('".$friendid."' AS UNSIGNED) &	CAST('1' AS UNSIGNED)), \":\", (CAST('".$friendid."' AS UNSIGNED) &	CAST('4294967295' AS UNSIGNED)) >> CAST('1' AS UNSIGNED)) AS steam_id;");
 	return $steamid['steam_id'];
 }
 
