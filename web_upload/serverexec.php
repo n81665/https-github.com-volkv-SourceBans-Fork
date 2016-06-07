@@ -111,7 +111,7 @@ $identkey = "ChangeMe";
         }else{
             /* Regular admin */
             $steam32id = $values['adminsteamid'];
-            if((!is_numeric($steam32id) && !validate_steam($steam32id)) || (is_numeric($steam32id) && (strlen($steam32id) < 15
+            if((!is_numeric($steam32id) && !validateconvert_steam($steam32id)) || (is_numeric($steam32id) && (strlen($steam32id) < 15
             || !validate_steam($steam32id = FriendIDToSteamID($steam32id)))))
             {
                 $steam32id = 0;
@@ -374,23 +374,25 @@ class serverexec
         {
             return "No Steam ID or IP set";
         }
-    	else if((!is_numeric($steam) && !validate_steam($steam)) || (is_numeric($steam) && (strlen($steam) < 15
+    	else if((!is_numeric($steam) && !validateconvert_steam($steam)) || (is_numeric($steam) && (strlen($steam) < 15
     	|| !validate_steam($steam = FriendIDToSteamID($steam)))))
     	{
     		return "Bad Steam ID";
         }
-        $type = $db->GetRow("SELECT type FROM ".DB_PREFIX."_comms WHERE authid = ? AND (length = 0 OR ends > UNIX_TIMESTAMP()) AND RemovedBy IS NULL", array($steam));
+        $bid = $db->GetRow("SELECT bid FROM ".DB_PREFIX."_comms WHERE authid = ? AND type = 2 AND (length = 0 OR ends > UNIX_TIMESTAMP()) AND RemovedBy IS NULL", array($steam));
 
-        if($type['type'] == NULL)
+        if($bid['bid'] != NULL)
         {
-            return "Ban Not Found";
+            return "chat";
         }
 
-        if($type['type'] == 1)
-            return "mute";
+        $bid = $db->GetRow("SELECT bid FROM ".DB_PREFIX."_comms WHERE authid = ? AND type = 1 AND (length = 0 OR ends > UNIX_TIMESTAMP()) AND RemovedBy IS NULL", array($steam));
 
-        if($type['type'] == 2)
-            return "chat";
+        if($bid['bid'] != NULL)
+        {
+            return "mute";
+        }
+        return "Ban Not Found";
 
     }
 
@@ -404,7 +406,7 @@ class serverexec
                 return "No Steam ID or IP set";
             }
         }
-    	else if((!is_numeric($steam) && !validate_steam($steam)) || (is_numeric($steam) && (strlen($steam) < 15
+    	else if((!is_numeric($steam) && !validateconvert_steam($steam)) || (is_numeric($steam) && (strlen($steam) < 15
     	|| !validate_steam($steam = FriendIDToSteamID($steam)))))
     	{
     		return "Bad Steam ID";
@@ -419,7 +421,7 @@ class serverexec
 
         if($id['bid'] == NULL)
         {
-            return CheckForBlocks($db, $userbank, $steam, $output);
+            return $this->CheckForBlocks($db, $userbank, $steam, $output);
         }
 	$id = $id['bid'];
 	$res = $db->GetRow("
@@ -446,7 +448,7 @@ class serverexec
     	{
     		return "No Steam ID set";
     	}
-    	else if((!is_numeric($steam) && !validate_steam($steam))
+    	else if((!is_numeric($steam) && !validateconvert_steam($steam))
     	|| (is_numeric($steam)
     	&& (strlen($steam) < 15
     	|| !validate_steam($steam = FriendIDToSteamID($steam)))))
@@ -547,7 +549,7 @@ class serverexec
           return "No Steam ID set";
     	}
     	else if((!is_numeric($steam)
-    	&& !validate_steam($steam))
+    	&& !validateconvert_steam($steam))
     	|| (is_numeric($steam)
     	&& (strlen($steam) < 15
     	|| !validate_steam($steam = FriendIDToSteamID($steam)))))
@@ -607,7 +609,7 @@ class serverexec
     	{
     		return "No Steam ID set";
     	}
-    	else if((!is_numeric($steam) && !validate_steam($steam))
+    	else if((!is_numeric($steam) && !validateconvert_steam($steam))
     	|| (is_numeric($steam)
     	&& (strlen($steam) < 15
     	|| !validate_steam($steam = FriendIDToSteamID($steam)))))

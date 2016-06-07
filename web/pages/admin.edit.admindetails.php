@@ -120,7 +120,7 @@ if(isset($_POST['adminname']))
 	{
 		// Validate the steamid or fetch it from the community id
 		if((!is_numeric($a_steam) 
-		&& !validate_steam($a_steam))
+		&& !validateconvert_steam($a_steam))
 		|| (is_numeric($a_steam) 
 		&& (strlen($a_steam) < 15
 		|| !validate_steam($a_steam = FriendIDToSteamID($a_steam)))))

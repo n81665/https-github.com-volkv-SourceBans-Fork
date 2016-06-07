@@ -53,7 +53,7 @@ else
 	$SID = (int)$_POST['server'];
 	$validsubmit = true;
 	$errors = "";
-	if((strlen($SteamID)!=0 && $SteamID != "STEAM_0:") && !validate_steam($SteamID))
+	if((strlen($SteamID)!=0 && $SteamID != "STEAM_0:") && !validateconvert_steam($SteamID))
 	{
 		$errors .= '* Please type a valid STEAM ID.<br>';
 		$validsubmit = false;
