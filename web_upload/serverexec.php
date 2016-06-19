@@ -26,9 +26,6 @@
 // *************************************************************************
 
 
-// *************************************************************************
-$identkey = "ChangeMe";
-// *************************************************************************
 
 
 // ---------------------------------------------------
@@ -48,6 +45,8 @@ $identkey = "ChangeMe";
         return;
     }
 
+    define('IN_SBSVEXEC', 1);
+    include 'serverexec_conf.php';
 
     if($values["identkey"] !== $identkey){
         $response = array('status' => 'invalid_identkey');
@@ -235,6 +234,7 @@ $identkey = "ChangeMe";
               $ip = "";
               $banreason = "";
               $playerid = "";
+              $steamid = "";
 
               if(isset($values['playername']))
               {
@@ -252,8 +252,13 @@ $identkey = "ChangeMe";
               {
                 $playerid = $values['playerid'];
               }
+              if(isset($values['steamid']))
+              {
+                $steamid = $values['steamid'];
+              }
 
-              $bantime = $values['timeleft'];
+              $bantime = (int)$values['timeleft'];
+
               if($bantime === -1 || $bantime > 0)
               {
                 if($bantime === -1)
@@ -264,7 +269,7 @@ $identkey = "ChangeMe";
                 $status = $serverexec->AddBan($GLOBALS['db'], $userbank, $playerid, $ip, $bantime, $banreason, $playername);
                 if($status === "Already Banned")
                 {
-                    $status = $serverexec->EditBan($GLOBALS['db'], $userbank, $steam, $bantime, "");
+                    $status = $serverexec->EditBan($GLOBALS['db'], $userbank, $playerid, $bantime, "");
                 }
                 if($status === "success")
                 {
@@ -281,8 +286,8 @@ $identkey = "ChangeMe";
 
               $response = array(
               'status' => $status,
-              'steamid' => 'UnknownName',
-              'nick' => '',
+              'steamid' => $steamid,
+              'nick' => '$playername',
               'playerid' => $playerid);
             }
 
@@ -299,17 +304,19 @@ $identkey = "ChangeMe";
 
             if($userbank->HasAccess(SM_ROOT . SM_RCON . SM_FULL . SM_GENERIC))
             {
-                $cmdlist .= ";pchat;getss;record;warn;undercover;stoprecord;changepassword;status";
+                $cmdlist .= ";getss;record;warn;undercover;stoprecord;changepassword;status;sm_chat;smc";
+                $cmdlist .= $additionalGenericAdminCommands;
             }else{
                 if($userbank->HasAccess(SM_CHAT))
                 {
-                    $cmdlist .= ";pchat";
+                    $cmdlist .= ";sm_chat;smc";
                 }
             }
 
             if($userbank->HasAccess(SM_ROOT . SM_RCON . SM_FULL))
             {
                 $cmdlist .= ";kick;tempban;permban;unban;map;map_rotate;map_restart;say;screensay;tell;screentell";
+                $cmdlist .= $additionalFullAdminCommands;
             }else{
                 if($userbank->HasAccess(SM_KICK))
                 {
@@ -333,6 +340,7 @@ $identkey = "ChangeMe";
             if($userbank->HasAccess(SM_ROOT . SM_RCON))
             {
                 $cmdlist .= ";set;exec;adminchangepassword;adminlistadmins;adminaddadmin;adminremoveadmin;adminlistcommands";
+                $cmdlist .= $additionalRootAdminCommands;
             }else{
                 if($userbank->HasAccess(SM_CVAR))
                 {
@@ -542,7 +550,6 @@ class serverexec
     	}
 
     	$steam = trim($steam);
-
     	// If they didnt type a steamid
     	if(empty($steam))
     	{
