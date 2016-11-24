@@ -419,6 +419,8 @@ class serverexec
     	{
     		return "Bad Steam ID";
     	}
+   	$ip = RemoveCode($ip);
+
         if(!empty($steam))
         {
 
@@ -569,7 +571,7 @@ class serverexec
     	if(!$length)
     		$len = 0;
     	else
-    		$len = $length*60;
+    		$len = (int)$length*60;
 
       // prune any old bans
 	    PruneBans();
@@ -594,7 +596,7 @@ class serverexec
     	$db->Execute($pre,array($ip,
     									   $steam,
     									   $nickname,
-    									   $length*60,
+    									   $len,
     									   $len,
     									   $reason,
     									   $userbank->GetAid(),
@@ -661,7 +663,8 @@ class serverexec
     	{
     		return "No Unban Reason";
     	}
-    	$edit = $db->Execute("UPDATE ".DB_PREFIX."_bans SET
+
+    	$edit = $db->Execute("UPDATE ".DB_PREFIX."_bans SET
     									`RemovedBy` = ?,
     									`RemoveType` = 'U',
     									`RemovedOn` = UNIX_TIMESTAMP(),
@@ -683,9 +686,9 @@ class serverexec
 	{
 		return "Insufficient Permissions";
 	}
-	$name = htmlspecialchars(strip_tags($name));//don't want to addslashes because execute will automatically do it
-	$icon = htmlspecialchars(strip_tags($icon));
-	$folder = htmlspecialchars(strip_tags($folder));
+	$name = RemoveCode($name);//don't want to addslashes because execute will automatically do it
+	$icon = RemoveCode($icon);
+	$folder = RemoveCode($folder);
 	$steam_universe = (int)$steam_universe;
 	$enabled = (int)$enabled;
 	
@@ -749,12 +752,13 @@ class serverexec
 	{
 		return "No rcon password set";
 	}
+	$rcon = RemoveCode($rcon);
 	// Please Select
 	if($mod < 1)
 	{
 		return "No mod set";
 	}
-	
+	
 	// Check for dublicates afterwards
 	$chk = $db->GetRow('SELECT sid FROM `'.DB_PREFIX.'_servers` WHERE ip = ? AND port = ?;', array($ip, (int)$port));
 	if($chk)
